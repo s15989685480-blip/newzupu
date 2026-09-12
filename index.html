@@ -12,6 +12,21 @@
         body {
             background-color: #f9f3e8;
         }
+        /* 家族标题样式 */
+        .family-title-wrap{
+            text-align:center;
+            padding:16px 8px;
+        }
+        .family-title{
+            font-size:28px;
+            font-weight:bold;
+            color:#78350f;
+        }
+        .edit-title-btn{
+            margin-left:12px;
+            font-size:14px;
+            padding:4px 8px;
+        }
         /* 标准树形连接线，不会向外溢出 */
         .tree {
             padding: 8px 0;
@@ -120,6 +135,9 @@
 
         /* ==========手机移动端适配========== */
         @media (max-width:768px) {
+            .family-title{
+                font-size:22px;
+            }
             .tree-node {
                 min-width:110px;
                 padding:8px 6px;
@@ -138,7 +156,8 @@
             /*弹窗手机占满宽度*/
             #keyModal>div,
             #changeKeyModal>div,
-            #importModal>div{
+            #importModal>div,
+            #titleModal>div{
                 width:92% !important;
             }
         }
@@ -149,8 +168,8 @@
                 margin: 8mm;
                 size: A4 landscape;
             }
-            nav, #keyModal, #changeKeyModal, #importModal,
-            button,.collapse-btn,.edit-btn,.delete-btn,.export-btn {
+            nav, #keyModal, #changeKeyModal, #importModal,#titleModal,
+            button,.collapse-btn,.edit-btn,.delete-btn,.export-btn,.edit-title-btn {
                 display: none !important;
             }
             body {
@@ -168,6 +187,17 @@
     </style>
 </head>
 <body class="min-h-screen">
+    <!-- 修改家族名称弹窗 -->
+    <div id="titleModal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-lg w-80 shadow-lg">
+            <h3 class="text-lg font-bold mb-4">修改家族名称</h3>
+            <input id="familyNameInput" type="text" placeholder="输入家族名称" class="w-full border p-2 rounded mb-4">
+            <div class="flex gap-2 justify-end">
+                <button onclick="closeTitleModal()" class="px-4 py-2 bg-gray-200 rounded">取消</button>
+                <button onclick="saveFamilyName()" class="px-4 py-2 bg-amber-600 text-white rounded">保存</button>
+            </div>
+        </div>
+    </div>
     <!--秘钥弹窗-->
     <div id="keyModal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center z-50">
         <div class="bg-white p-6 rounded-lg w-80 shadow-lg">
@@ -203,6 +233,11 @@
             </div>
         </div>
     </div>
+    <!--家族名称抬头区域-->
+    <div class="family-title-wrap">
+        <span id="familyTitleText" class="family-title">庐阳王氏家族族谱</span>
+        <button id="editFamilyTitleBtn" onclick="openTitleModal()" class="edit-title-btn bg-amber-700 text-white rounded hidden">修改名称</button>
+    </div>
     <!--导航栏-->
     <nav class="bg-amber-800 text-white shadow">
         <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap gap-2 items-center">
@@ -225,7 +260,6 @@
                 <button onclick="expandAllTree()" class="bg-amber-700 text-white px-2 py-1 rounded text-sm">全部展开</button>
                 <button onclick="collapseAllTree()" class="bg-amber-700 text-white px-2 py-1 rounded text-sm">全部折叠</button>
             </div>
-            <h2 class="text-xl font-bold text-amber-900 mb-4 text-center">家族族谱图谱</h2>
             <div id="treeRender" class="overflow-auto p-4 bg-white rounded shadow"></div>
         </div>
         <!--家族传承信息页面-->
@@ -323,12 +357,42 @@
 let ADMIN_SECRET = "family123456";
 let isAdmin = false;
 let searchKeyword = "";
+let familyName = "庐阳王氏家族族谱";
+
+//修改家族名称弹窗
+function openTitleModal(){
+    document.getElementById("titleModal").classList.remove("hidden");
+    document.getElementById("familyNameInput").value = familyName;
+}
+function closeTitleModal(){
+    document.getElementById("titleModal").classList.add("hidden");
+}
+function saveFamilyName(){
+    const val = document.getElementById("familyNameInput").value.trim();
+    if(!val){
+        alert("家族名称不能为空");
+        return;
+    }
+    familyName = val;
+    localStorage.setItem("family_name",familyName);
+    document.getElementById("familyTitleText").innerText = familyName;
+    closeTitleModal();
+    alert("家族名称修改成功！");
+}
+
 //初始化本地存储
 function initStorage(){
     if(!localStorage.getItem("admin_secret")){
         localStorage.setItem("admin_secret",ADMIN_SECRET);
     }else{
         ADMIN_SECRET = localStorage.getItem("admin_secret");
+    }
+    //加载家族名称
+    if(localStorage.getItem("family_name")){
+        familyName = localStorage.getItem("family_name");
+        document.getElementById("familyTitleText").innerText = familyName;
+    }else{
+        localStorage.setItem("family_name",familyName);
     }
     if(!localStorage.getItem("family_tree")){
         const initTree = [
@@ -405,6 +469,8 @@ function refreshAuthUi(){
     }else{
         tip.innerText="未登录(仅浏览)";
     }
+    //管理员登录才显示修改家族名称按钮
+    document.getElementById("editFamilyTitleBtn").classList.toggle("hidden",!isAdmin);
     document.getElementById("btnAddInherit").classList.toggle("hidden",!isAdmin);
     document.getElementById("btnAddGlory").classList.toggle("hidden",!isAdmin);
     refreshToolsUi();
@@ -438,7 +504,8 @@ function exportJson(){
     const backupData = {
         tree: JSON.parse(localStorage.getItem("family_tree")),
         inherit: JSON.parse(localStorage.getItem("family_inherit")),
-        glory: JSON.parse(localStorage.getItem("family_glory"))
+        glory: JSON.parse(localStorage.getItem("family_glory")),
+        familyName: localStorage.getItem("family_name")
     };
     const blob = new Blob([JSON.stringify(backupData,null,2)], {type:"application/json"});
     const url = URL.createObjectURL(blob);
@@ -477,6 +544,12 @@ function doImportData(){
         localStorage.setItem("family_tree",JSON.stringify(obj.tree));
         localStorage.setItem("family_inherit",JSON.stringify(obj.inherit));
         localStorage.setItem("family_glory",JSON.stringify(obj.glory));
+        //导入时恢复家族名称
+        if(obj.familyName){
+            localStorage.setItem("family_name",obj.familyName);
+            familyName = obj.familyName;
+            document.getElementById("familyTitleText").innerText = familyName;
+        }
         closeImportModal();
         alert("导入成功！");
         renderTree();renderInherit();renderGlory();
