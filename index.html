@@ -100,6 +100,11 @@
             height: 26px;
             border-left: 1px solid #885c2e;
         }
+        .tree-node-wrap{
+            display:flex;
+            align-items:center;
+            gap:6px;
+        }
         .tree-node {
             border: 1px solid #b48c5e;
             background: #fff9ef;
@@ -109,6 +114,14 @@
             text-align: center;
             position: relative;
             box-shadow: 0 2px 4px #00000015;
+        }
+        .tree-node-spouse{
+            border:1px solid #d8889c;
+            background:#fff0f3;
+        }
+        .spouse-connect{
+            color:#c24b68;
+            font-weight:bold;
         }
         .collapse-btn {
             position: absolute;
@@ -132,7 +145,6 @@
             cursor:not-allowed !important;
             opacity:0.65;
         }
-
         /* ==========手机移动端适配========== */
         @media (max-width:768px) {
             .family-title{
@@ -161,7 +173,6 @@
                 width:92% !important;
             }
         }
-
         /* ==========打印导出PDF样式【修复完成】========== */
         @media print {
             @page {
@@ -312,9 +323,25 @@
                 </div>
                 <div class="mb-3">
                     <label>个人简介</label>
-                    <textarea id="pIntro" rows="4" class="w-full border p-2 rounded"></textarea>
+                    <textarea id="pIntro" rows="3" class="w-full border p-2 rounded"></textarea>
                 </div>
-                <button onclick="savePerson()" class="bg-amber-700 text-white px-5 py-2 rounded">保存族人信息</button>
+
+                <hr class="my-4">
+                <h4 class="font-bold text-rose-700 mb-3">配偶信息（留空代表无配偶）</h4>
+                <div class="mb-3">
+                    <label>配偶姓名</label>
+                    <input id="spouseName" class="w-full border p-2 rounded">
+                </div>
+                <div class="mb-3">
+                    <label>配偶出生年月</label>
+                    <input id="spouseBirth" class="w-full border p-2 rounded">
+                </div>
+                <div class="mb-3">
+                    <label>配偶逝世年月（在世留空）</label>
+                    <input id="spouseDeath" class="w-full border p-2 rounded">
+                </div>
+
+                <button onclick="savePerson()" class="bg-amber-700 text-white px-5 py-2 rounded mt-2">保存族人信息</button>
             </div>
         </div>
         <!--家族光荣史记页面-->
@@ -396,13 +423,14 @@ function initStorage(){
     }
     if(!localStorage.getItem("family_tree")){
         const initTree = [
-            {id:"root1",name:"家族始祖",gender:"男",birth:"1850",death:"1920",intro:"家族第一代先祖",parentId:null,fold:false}
+            {id:"root1",name:"家族始祖",gender:"男",birth:"1850",death:"1920",intro:"家族第一代先祖",parentId:null,fold:false,spouseName:"",spouseBirth:"",spouseDeath:""}
         ]
         localStorage.setItem("family_tree",JSON.stringify(initTree));
     }
     if(!localStorage.getItem("family_inherit")) localStorage.setItem("family_inherit",JSON.stringify([]));
     if(!localStorage.getItem("family_glory")) localStorage.setItem("family_glory",JSON.stringify([]));
 }
+
 //页面切换
 function switchPage(pageName){
     document.querySelectorAll(".page").forEach(p=>p.classList.add("hidden"));
@@ -443,6 +471,7 @@ function gotoAddPage(){
     loadParentSelect();
     switchPage("add");
 }
+
 //秘钥弹窗
 function openModal(){
     document.getElementById("keyModal").classList.remove("hidden");
@@ -478,6 +507,7 @@ function refreshAuthUi(){
     renderInherit();
     renderGlory();
 }
+
 //修改秘钥弹窗
 function openChangeKeyModal(){
     document.getElementById("changeKeyModal").classList.remove("hidden");
@@ -529,6 +559,7 @@ function exportPdf() {
   expandAllTree();
   setTimeout(window.print, 700);
 }
+
 //导入弹窗
 function openImportModal(){
     document.getElementById("importModal").classList.remove("hidden");
@@ -557,10 +588,12 @@ function doImportData(){
         alert("JSON格式错误，导入失败");
     }
 }
+
 //家族树渲染
 function getFamilyData(){
     return JSON.parse(localStorage.getItem("family_tree"));
 }
+
 //折叠展开控制
 function toggleFold(id){
     const arr = getFamilyData();
@@ -583,18 +616,23 @@ function collapseAllTree(){
     localStorage.setItem("family_tree",JSON.stringify(arr));
     renderTree();
 }
+
 //搜索族人
 function searchPerson(){
     searchKeyword = document.getElementById("searchName").value.trim();
     renderTree();
 }
-//递归生成树形HTML（ul‑li新版）
+
+//递归生成树形HTML（ul‑li新版，支持配偶并排）
 function buildTreeNode(person, allList) {
     const children = allList.filter(x => x.parentId === person.id);
     let isHighlight = searchKeyword && person.name.includes(searchKeyword);
     let cls = isHighlight ? "tree-node highlight-node" : "tree-node";
     let foldIcon = person.fold ? "+" : "−";
-    let nodeHtml = `<div class="${cls}">`;
+
+    let nodeHtml = `<div class="tree-node-wrap">`;
+    //本人卡片
+    nodeHtml += `<div class="${cls}">`;
     if (children.length > 0) {
         nodeHtml += `<span class="collapse-btn" onclick="toggleFold('${person.id}')">${foldIcon}</span>`;
     }
@@ -611,12 +649,25 @@ function buildTreeNode(person, allList) {
         `;
     }
     nodeHtml += `</div>`;
+
+    //配偶卡片，有配偶才渲染
+    if(person.spouseName && person.spouseName.trim()!=""){
+        nodeHtml += `<span class="spouse-connect">💑</span>`;
+        nodeHtml += `<div class="tree-node tree-node-spouse">
+            <div class="font-bold">${person.spouseName}</div>
+            <div class="text-xs text-gray-600">${person.spouseBirth||""} ${person.spouseDeath?"‑"+person.spouseDeath:""} ${person.spouseDeath?"(已故)":"(在世)"}</div>
+            <div class="text-xs text-rose-600 mt-1">配偶</div>
+        </div>`;
+    }
+    nodeHtml += `</div>`;
+
     let htmlOut = nodeHtml;
     if (children.length > 0 && !person.fold) {
         htmlOut += `<ul>` + children.map(ch => `<li>` + buildTreeNode(ch, allList) + `</li>`).join("") + `</ul>`;
     }
     return htmlOut;
 }
+
 function renderTree() {
     const list = getFamilyData();
     const rootList = list.filter(x => !x.parentId);
@@ -625,6 +676,7 @@ function renderTree() {
     out += `</ul></div>`;
     document.getElementById("treeRender").innerHTML = out;
 }
+
 //族人表单
 function loadParentSelect(){
     const sel = document.getElementById("pParentId");
@@ -639,7 +691,12 @@ function clearPersonForm(){
     document.getElementById("pGender").value="男";
     document.getElementById("pBirth").value="";
     document.getElementById("pDeath").value="";
+    document.getElementById("pParentId").value="";
     document.getElementById("pIntro").value="";
+    //配偶表单清空
+    document.getElementById("spouseName").value="";
+    document.getElementById("spouseBirth").value="";
+    document.getElementById("spouseDeath").value="";
 }
 function savePerson(){
     if(!isAdmin) return;
@@ -654,7 +711,10 @@ function savePerson(){
         death:document.getElementById("pDeath").value.trim(),
         parentId: newParentId,
         intro:document.getElementById("pIntro").value.trim(),
-        fold:false
+        fold:false,
+        spouseName:document.getElementById("spouseName").value.trim(),
+        spouseBirth:document.getElementById("spouseBirth").value.trim(),
+        spouseDeath:document.getElementById("spouseDeath").value.trim()
     }
     if(!obj.name){alert("姓名不能为空");return;}
     //禁止挂载给自己或后代
@@ -695,6 +755,11 @@ function editPerson(pid){
     document.getElementById("pDeath").value = p.death||"";
     document.getElementById("pParentId").value = p.parentId||"";
     document.getElementById("pIntro").value = p.intro||"";
+    //回显配偶信息
+    document.getElementById("spouseName").value = p.spouseName||"";
+    document.getElementById("spouseBirth").value = p.spouseBirth||"";
+    document.getElementById("spouseDeath").value = p.spouseDeath||"";
+
     loadParentSelect();
     switchPage("add");
 }
@@ -712,6 +777,7 @@ function delPerson(pid){
     localStorage.setItem("family_tree",JSON.stringify(arr));
     renderTree();
 }
+
 //家族传承模块
 function getInheritData(){return JSON.parse(localStorage.getItem("family_inherit"));}
 function renderInherit(){
@@ -776,6 +842,7 @@ function delInherit(id){
     localStorage.setItem("family_inherit",JSON.stringify(arr));
     renderInherit();
 }
+
 //光荣史记模块
 function getGloryData(){return JSON.parse(localStorage.getItem("family_glory"));}
 function renderGlory(){
@@ -841,6 +908,7 @@ function delGlory(id){
     localStorage.setItem("family_glory",JSON.stringify(arr));
     renderGlory();
 }
+
 window.onload=()=>{
     initStorage();
     switchPage("home");
